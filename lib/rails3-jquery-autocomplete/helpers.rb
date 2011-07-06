@@ -113,7 +113,7 @@ module Rails3JQueryAutocomplete
 
       implementation == :mongo_mapper ? (items = model.query) : items = model.scoped
 
-      scopes.each { |scope| items = items.send(scope) } unless scopes.empty?
+      scopes.each { |scope| scope == "in_current_city" ? items = items.send(scope,current_city) : items = items.send(scope) } unless scopes.empty?
 
       case implementation
         when :mongoid
