@@ -6,15 +6,10 @@ module Rails3JQueryAutocomplete
     #
     # Returns a hash with three keys actually used by the Autocomplete jQuery-ui
     # Can be overriden to show whatever you like
-    # Hash also includes a key/value pair for each method in extra_data
     #
-    def json_for_autocomplete(items, method, extra_data=nil)
+    def json_for_autocomplete(items, method)
       items.collect do |item|
-        hash = {"id" => item.id.to_s, "label" => item.send(method), "value" => item.send(method)}
-        extra_data.each do |datum|
-          hash[datum] = item.send(datum)
-        end if extra_data
-        hash
+        {"id" => item.id.to_s, "label" => item.send(method), "value" => item.send(method)}
       end
     end
 
@@ -101,9 +96,11 @@ module Rails3JQueryAutocomplete
     #   items = get_autocomplete_items(:model => get_object(object), :options => options, :term => term, :method => method)
     #
     def get_autocomplete_items(parameters)
+
       model      = parameters[:model]
       term       = parameters[:term]
-      method     = parameters[:method]
+      methods    = parameters[:methods]
+      method     = methods[0]
       options    = parameters[:options]
 
       is_full_search = options[:full]
@@ -127,11 +124,49 @@ module Rails3JQueryAutocomplete
           items  = model.where(method.to_sym => /#{search}/i).limit(limit).sort(order)  
         when :activerecord
           table_name = model.table_name
-          items = items.select(["#{table_name}.#{model.primary_key}", "#{table_name}.#{method}"] + (options[:extra_data].blank? ? [] : options[:extra_data])) unless options[:full_model]
-          items = items.where(["LOWER(#{table_name}.#{method}) #{like_clause} ?", "#{(is_full_search ? '%' : '')}#{term.downcase}%"]) \
-              .limit(limit).order(order)
+          query = ""
+          count = 1
+          methods.each do |column| 
+            query += "LOWER(#{table_name}.#{column}) #{like_clause} :search_term"
+            count == methods.length ? query += "" : query += " OR "
+            count += 1
+          end
+          items = items.where( query, :search_term => "#{(is_full_search ? '%' : '')}#{term.downcase}%" ).limit(limit).order(order)
       end
     end
+
+#    def get_autocomplete_items(parameters)
+#      model      = parameters[:model]
+#      term       = parameters[:term]
+#      method     = parameters[:method]
+#      options    = parameters[:options]
+#
+#      is_full_search = options[:full]
+#      scopes         = Array(options[:scopes])
+#      limit          = get_autocomplete_limit(options)
+#      implementation = get_implementation(model)
+#      order          = get_autocomplete_order(implementation, method, options, model)
+#
+#      like_clause = (defined?(PGconn) ? 'ILIKE' : 'LIKE')
+#
+#      implementation == :mongo_mapper ? (items = model.query) : items = model.scoped
+#
+#      scopes.each { |scope| items = items.send(scope) } unless scopes.empty?
+#
+#      case implementation
+#        when :mongoid
+#          search = (is_full_search ? '.*' : '^') + term + '.*'
+#          items  = model.where(method.to_sym => /#{search}/i).limit(limit).order_by(order)
+#        when :mongo_mapper
+#          search = (is_full_search ? '.*' : '^') + term + '.*'
+#          items  = model.where(method.to_sym => /#{search}/i).limit(limit).sort(order)  
+#        when :activerecord
+#          table_name = model.table_name
+#          items = items.where(["LOWER(#{table_name}.#{method}) #{like_clause} ?", "#{(is_full_search ? '%' : '')}#{term.downcase}%"]) \
+#              .limit(limit).order(order)
+#      end
+#    end
+
   end
 end
 
