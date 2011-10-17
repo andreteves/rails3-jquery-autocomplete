@@ -13,6 +13,10 @@ end
 #
 begin
   require 'formtastic'
+  begin
+    require "formtastic/version"
+  rescue LoadError
+  end
   # issue #32
   # class Formtastic::SemanticFormBuilder < ActionView::Helpers::FormBuilder
   class Formtastic::FormBuilder < ActionView::Helpers::FormBuilder
